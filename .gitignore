@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# Generated data files
+data/helpdesk.db
+data/processed/*.csv
+documentation/data_profile.md
+
+# Keep directory structure
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!screenshots/.gitkeep
+
+# Raw data (often large / contains PII)
+data/raw/*.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Virtual envs
+.venv/
+venv/
+env/
