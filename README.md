@@ -1,20 +1,39 @@
-# IT Helpdesk Ticket Analytics
-
-End-to-end analytics pipeline that turns raw IT support tickets into a Power BI-ready star-schema dataset, complete with SQL transformations, DAX measures, and a manager-facing dashboard.
+# IT Helpdesk Ticket Analytics Dashboard
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
 ![pandas](https://img.shields.io/badge/pandas-2.x-150458?logo=pandas&logoColor=white)
-![Power BI](https://img.shields.io/badge/Power%20BI-Desktop-F2C811?logo=powerbi&logoColor=black)
-![DAX](https://img.shields.io/badge/DAX-Measures-217346)
+![Power BI](https://img.shields.io/badge/Power%20BI-Service-F2C811?logo=powerbi&logoColor=black)
+![DAX](https://img.shields.io/badge/DAX-30%20Measures-217346)
+
+An end-to-end data engineering and analytics project — raw IT support ticket CSV → cleaned SQLite star schema → Power BI Service dashboard — with full SQL transformations, 30 DAX measures, and documentation designed for a non-technical IT manager audience.
 
 ---
 
-## Case Study
+## What This Project Does
 
-IT support teams drown in tickets but starve for insight. Operations leaders ask the same questions every week — "What's our SLA compliance?", "Who's our slowest agent?", "Why is the backlog growing?" — and the answers live in a swamp of CSVs with inconsistent column names, mixed date formats, and free-text priority fields. This project rebuilds that pipeline from scratch: a Python ingestion layer that profiles and cleans whatever shape the raw export arrives in, a SQLite warehouse with a clean star schema, validated derived metrics (`resolution_hours`, `sla_breached`, `is_first_contact_resolved`, age bands), and a fully documented set of DAX measures organized by business theme.
+IT support teams generate thousands of tickets but rarely have a structured way to answer the questions that matter: *Are we meeting SLA targets? Which categories take the longest to resolve? Is our backlog growing?*
 
-The output is built for two audiences: a **non-technical IT manager** who needs glanceable KPIs (Total Tickets, MTTR, SLA Compliance, CSAT) and at-a-glance breach risk; and a **junior IT analyst** who needs to understand and extend the model — every measure is named for the business question it answers, every assumption is written down in `documentation/assumptions.md`, and the Power BI build is a click-by-click guide in `documentation/powerbi_setup_guide.md`. Drop a new CSV into `data/raw/`, run one script, and the dashboard refreshes.
+This project builds the full answer:
+
+1. **Ingest** — a Python profiler reads any CSV with ticket data, infers column names from synonyms, flags data quality issues, and writes a profiling report.
+2. **Clean** — a second Python script normalises priority labels, parses mixed datetime formats, derives `first_response_at` from numeric hour offsets, and loads everything into SQLite.
+3. **Model** — four SQL scripts build a star schema: dimension tables for agent, category, channel, priority, and a recursive-CTE-generated calendar, plus a fact table with derived columns (`resolution_hours`, `sla_breached`, `is_first_contact_resolved`, `ticket_age_band`).
+4. **Validate** — a fifth SQL script runs five labelled sanity checks (orphan keys, negative hours, row-count parity).
+5. **Export** — a Python script writes six CSVs for direct import into Power BI Service.
+6. **Visualise** — 30 DAX measures covering Volume, Efficiency (MTTR/MTTA), FCR, SLA, Backlog Aging, Agent Performance, and CSAT, with a step-by-step Power BI web build guide.
+
+**Source data:** [Customer Support Tickets 200k](https://www.kaggle.com) — 200,000 rows across 10 categories, 5 channels, 4 priority levels, spanning 2022–2025.
+
+---
+
+## Dashboard Pages
+
+| Page | Key Visuals |
+|---|---|
+| **Overview** | Total tickets, open backlog, MTTR, SLA compliance, CSAT cards; tickets-over-time line chart; tickets by priority bar; aging donut |
+| **SLA & Performance** | SLA breach count + at-risk count; breach rate by category column chart; agent performance matrix with conditional formatting |
+| **CSAT** | Avg CSAT, satisfied %, dissatisfied %; CSAT by category bar |
 
 ---
 
@@ -22,65 +41,125 @@ The output is built for two audiences: a **non-technical IT manager** who needs 
 
 ```
 IT-ticket-analytics-dashboard/
-├── README.md                       <- you are here
+│
+├── README.md
 ├── requirements.txt
+├── .gitignore
+│
 ├── scripts/
-│   ├── column_mapping.py           <- shared raw→canonical synonyms
-│   ├── 01_profile_data.py
-│   ├── 02_clean_and_load.py
-│   ├── 03_export_csvs.py
-│   ├── run_all.sh                  <- macOS / Linux pipeline runner
-│   └── run_all.bat                 <- Windows pipeline runner
+│   ├── column_mapping.py        ← shared synonym dict (single source of truth)
+│   ├── 01_profile_data.py       ← profile any CSV, write data_profile.md
+│   ├── 02_clean_and_load.py     ← clean + load into SQLite raw_tickets table
+│   ├── 03_export_csvs.py        ← export star schema to data/processed/*.csv
+│   ├── run_all.sh               ← full pipeline runner (macOS/Linux)
+│   └── run_all.bat              ← full pipeline runner (Windows)
+│
 ├── sql/
-│   ├── 01_create_schema.sql        <- fact + dim DDL
-│   ├── 02_populate_dims.sql        <- dim populate + recursive calendar CTE
-│   ├── 03_transform_facts.sql      <- fact_tickets + derived columns
-│   └── 04_validation_checks.sql    <- 5 sanity SELECTs
+│   ├── 01_create_schema.sql     ← DDL for fact + all dims
+│   ├── 02_populate_dims.sql     ← INSERT dims + recursive calendar CTE
+│   ├── 03_transform_facts.sql   ← INSERT fact_tickets with derived columns
+│   └── 04_validation_checks.sql ← 5 labelled sanity SELECTs
+│
 ├── data/
-│   ├── raw/                        <- drop source CSV here
-│   ├── processed/                  <- generated CSVs (Power BI imports these)
-│   └── helpdesk.db                 <- generated SQLite warehouse
+│   ├── raw/                     ← drop source CSV(s) here
+│   ├── processed/               ← generated: 6 CSVs for Power BI
+│   └── helpdesk.db              ← generated: SQLite warehouse (gitignored)
+│
 ├── measures/
-│   └── all_measures.dax            <- every DAX measure, grouped by theme
+│   └── all_measures.dax         ← all 30 DAX measures, grouped by theme
+│
 ├── documentation/
-│   ├── data_profile.md             <- auto-generated by Step 1
-│   ├── data_dictionary.md
-│   ├── metric_definitions.md
-│   ├── assumptions.md
-│   └── powerbi_setup_guide.md
-└── screenshots/                    <- fill after Power BI build
+│   ├── data_profile.md          ← auto-generated quality report (gitignored)
+│   ├── data_dictionary.md       ← every column in every table
+│   ├── metric_definitions.md    ← plain-English KPI definitions + DAX names
+│   ├── assumptions.md           ← SLA thresholds, FCR proxy, null handling
+│   └── powerbi_setup_guide.md   ← click-by-click Power BI Service build guide
+│
+└── screenshots/                 ← add after building the dashboard
+    ├── 01_overview_page.png
+    ├── 02_sla_performance_page.png
+    └── 03_csat_page.png
 ```
 
 ---
 
-## Setup
+## Quick Start
+
+### 1. Install dependencies
 
 ```bash
-# 1. Install Python deps (system python3)
 pip install -r requirements.txt
-
-# 2. Drop a tickets CSV into data/raw/
-#    (any of: tickets.csv, customer_support_tickets.csv, ...)
-
-# 3. Run the full pipeline
-bash scripts/run_all.sh        # macOS / Linux
-# or on Windows:
-scripts\run_all.bat
 ```
 
-After the script finishes you will have:
+> On macOS with Homebrew Python, if pip blocks the install, use:
+> `pip install --break-system-packages -r requirements.txt`
+> or use the system Python: `/usr/bin/python3`
 
-- `data/helpdesk.db` — SQLite warehouse with `raw_tickets`, `fact_tickets`, and all dims.
-- `data/processed/*.csv` — six CSVs ready for Power BI import.
-- `documentation/data_profile.md` — auto-generated quality report on YOUR data.
+### 2. Add your data
 
-Then follow [`documentation/powerbi_setup_guide.md`](documentation/powerbi_setup_guide.md) for the Power BI build (30–45 minutes).
+Drop a tickets CSV into `data/raw/`. The pipeline auto-discovers it. If multiple CSVs are present, it processes each and skips any that lack a `created_at`-equivalent column.
+
+Tested with:
+- `customer_support_tickets_200k.csv` — 200,000 rows, full schema
+- Any CSV with columns like `ticket_id`, `created_at`, `status`, `priority`, `category`, `channel`, `satisfaction_score`
+
+### 3. Run the pipeline
+
+```bash
+bash scripts/run_all.sh        # macOS / Linux
+scripts\run_all.bat            # Windows
+```
+
+**What runs:**
+
+| Step | Script | Output |
+|---|---|---|
+| 1 | `01_profile_data.py` | Prints quality report, writes `documentation/data_profile.md` |
+| 2 | `02_clean_and_load.py` | Cleans data, loads `raw_tickets` into `data/helpdesk.db` |
+| 3a | `sql/01_create_schema.sql` | Creates fact + dim tables |
+| 3b | `sql/02_populate_dims.sql` | Populates dims + calendar |
+| 3c | `sql/03_transform_facts.sql` | Builds `fact_tickets` with all derived columns |
+| 4 | `sql/04_validation_checks.sql` | 5 sanity checks — all should show 0 bad rows |
+| 5 | `03_export_csvs.py` | Exports 6 CSVs to `data/processed/` |
+
+### 4. Build the dashboard
+
+Follow [`documentation/powerbi_setup_guide.md`](documentation/powerbi_setup_guide.md) — step-by-step instructions for Power BI Service (browser, no desktop app required).
+
+---
+
+## Key Metrics Produced
+
+| Metric | Description |
+|---|---|
+| **MTTR** | Mean Time To Resolve — average hours from open to close |
+| **MTTA** | Mean Time To Acknowledge — average hours to first agent response |
+| **FCR Rate** | First Contact Resolution — % resolved without a reopen |
+| **SLA Compliance** | % of resolved tickets that met the SLA target |
+| **SLA At Risk** | Open tickets that have consumed ≥ 80% of their SLA window |
+| **Backlog Count** | Total unresolved tickets right now |
+| **Aging Bands** | 0–1 day / 1–3 days / 3–7 days / 7–14 days / 14+ days |
+| **CSAT** | Average customer satisfaction score (1–5, nulls excluded) |
+
+SLA targets: Critical = 4 h · High = 8 h · Medium = 24 h · Low = 72 h
+
+---
+
+## Tech Stack
+
+| Layer | Tool |
+|---|---|
+| Ingestion & cleaning | Python 3, pandas |
+| Warehouse | SQLite 3 |
+| Transformations | SQL (4 scripts, version-controlled) |
+| Visualisation | Power BI Service (app.powerbi.com) |
+| Measures | DAX (30 measures across 7 themes) |
 
 ---
 
 ## Screenshots
 
-> Fill these in after building the dashboard.
+> Add after building the dashboard in Power BI Service.
 
 ![Overview Page](screenshots/01_overview_page.png)
 ![SLA & Performance Page](screenshots/02_sla_performance_page.png)
@@ -88,21 +167,12 @@ Then follow [`documentation/powerbi_setup_guide.md`](documentation/powerbi_setup
 
 ---
 
-## Data Sources
+## Documentation
 
-The pipeline is data-source agnostic — any CSV with ticket-like columns will work. Two well-known public datasets it's been designed against:
-
-- **Customer Support Tickets** (Kaggle): https://www.kaggle.com/datasets/suraj520/customer-support-ticket-dataset
-- **Helpdesk Tickets** sample (Kaggle / various): search "helpdesk tickets" on Kaggle.
-
-The profiling script (`01_profile_data.py`) will print the column mapping it inferred and write a full profile report to `documentation/data_profile.md` so you can verify the input before the rest of the pipeline runs.
-
----
-
-## Tech Stack
-
-- **Python** — ingestion, profiling, cleaning (pandas).
-- **SQLite** — local star-schema warehouse, recursive CTEs for the calendar dim.
-- **SQL** — every transformation is in version-controlled `.sql` files.
-- **Power BI Desktop** — semantic model + visuals.
-- **DAX** — all measures organized by business theme.
+| File | Contents |
+|---|---|
+| [`data_dictionary.md`](documentation/data_dictionary.md) | Every column in every fact and dim table |
+| [`metric_definitions.md`](documentation/metric_definitions.md) | Plain-English KPI definitions, formulas, DAX names |
+| [`assumptions.md`](documentation/assumptions.md) | SLA thresholds, FCR proxy, null handling decisions |
+| [`powerbi_setup_guide.md`](documentation/powerbi_setup_guide.md) | Click-by-click Power BI Service build guide |
+| [`data_profile.md`](documentation/data_profile.md) | Auto-generated quality report (run Step 1 to populate) |

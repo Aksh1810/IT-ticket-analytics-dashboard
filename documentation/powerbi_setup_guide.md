@@ -1,10 +1,9 @@
-# Power BI Setup Guide
+# Power BI Setup Guide (Web — app.powerbi.com)
 
-A click-by-click guide for a beginner Power BI user. By the end you will have
-a fully working IT helpdesk dashboard with all KPIs, a star-schema data model,
-working slicers, and a publish-ready `.pbix` file.
+A click-by-click guide using **Power BI Service** (the browser version at
+[app.powerbi.com](https://app.powerbi.com)). No desktop app needed.
 
-> Estimated time: **30–45 minutes**.
+> Estimated time: **40–55 minutes**.
 
 ---
 
@@ -14,40 +13,64 @@ working slicers, and a publish-ready `.pbix` file.
    ```bash
    bash scripts/run_all.sh
    ```
-2. Install **Power BI Desktop** (free, Windows-only).
-3. Open Power BI Desktop, then **File → Save As** and save the empty file as `IT_Helpdesk_Dashboard.pbix` in your project root.
+   You need all six files:
+   `fact_tickets.csv`, `dim_agent.csv`, `dim_category.csv`,
+   `dim_channel.csv`, `dim_priority.csv`, `dim_calendar.csv`
+
+2. Sign in to [app.powerbi.com](https://app.powerbi.com) with your Microsoft
+   account (free account works; some features require Pro/Premium — noted where relevant).
 
 ---
 
-## 1. Import the CSV files
+## 1. Create a workspace
 
-You will import **six** CSVs from `data/processed/`.
+1. In the left sidebar, click **Workspaces → + New workspace**.
+2. Name it `IT Helpdesk Analytics`. Click **Apply**.
 
-For each file:
-
-1. **Home → Get Data → Text/CSV**.
-2. Browse to `data/processed/` and pick one of:
-   - `fact_tickets.csv`
-   - `dim_agent.csv`
-   - `dim_category.csv`
-   - `dim_channel.csv`
-   - `dim_priority.csv`
-   - `dim_calendar.csv`
-3. In the preview dialog, click **Transform Data**.
-4. In Power Query Editor, rename the query (right pane → Properties → Name) to remove the underscores and use PascalCase:
-   - `fact_tickets` → `FactTickets`
-   - `dim_agent` → `DimAgent`
-   - `dim_category` → `DimCategory`
-   - `dim_channel` → `DimChannel`
-   - `dim_priority` → `DimPriority`
-   - `dim_calendar` → `DimCalendar`
-5. **Home → Close & Apply** once all six queries are loaded.
+(You can also use **My workspace** if you prefer.)
 
 ---
 
-## 2. Set column data types
+## 2. Upload the CSVs and create the dataset
 
-Power BI may guess wrong on a few columns. Use **Modeling → Data type** (or the dropdown above each column) to set them precisely.
+Power BI Service can build a multi-table dataset from local files inside the
+report editor. Here is the exact flow:
+
+1. From your workspace, click **+ New → Report**.
+2. On the "Add data to your report" screen, click **Upload a file** if shown, OR choose **Get data** from the top ribbon.
+3. **Get data → Text/CSV → Browse**.
+4. Navigate to `data/processed/` and select **`fact_tickets.csv`**.
+5. In the preview dialog, click **Transform data** (opens the Power Query editor in the browser).
+
+### Inside the Power Query editor
+
+Repeat for all six CSVs:
+
+1. **Home → New Source → Text/CSV** and add the next CSV.
+2. After adding all six, rename each query in the left pane (right-click the
+   query name → **Rename**):
+
+   | Original name | Rename to |
+   |---|---|
+   | `fact_tickets` | `FactTickets` |
+   | `dim_agent` | `DimAgent` |
+   | `dim_category` | `DimCategory` |
+   | `dim_channel` | `DimChannel` |
+   | `dim_priority` | `DimPriority` |
+   | `dim_calendar` | `DimCalendar` |
+
+3. Click **Home → Close & Apply**.
+
+> **Tip:** If the browser Power Query is not available in your account tier,
+> an alternative is to combine all six CSVs into one Excel workbook (each CSV
+> as a separate sheet) and upload the `.xlsx` instead.
+
+---
+
+## 3. Set column data types
+
+In the report view, click **Model** in the left sidebar, then click each table
+and set the data types column by column using the **Properties** panel on the right.
 
 ### FactTickets
 
@@ -72,7 +95,8 @@ Power BI may guess wrong on a few columns. Use **Modeling → Data type** (or th
 | `is_first_contact_resolved` | Whole number |
 | `ticket_age_band` | Text |
 
-> **Important:** if `created_at` imports as Text, your relationships will break. Fix it before continuing.
+> **Important:** if `created_at` shows as Text, all time-based visuals will
+> break. Fix the type before continuing.
 
 ### DimAgent
 
@@ -121,165 +145,234 @@ Power BI may guess wrong on a few columns. Use **Modeling → Data type** (or th
 
 ---
 
-## 3. Create the five relationships
+## 4. Create the five relationships
 
-Open **Model view** (the left-sidebar icon that looks like three connected boxes).
+1. In the left sidebar, click the **Model view** icon (looks like three connected boxes).
+2. You will see all six tables as cards. Drag a column from FactTickets onto the
+   matching column in the dim table to create a relationship line.
+3. **Double-click each line** to confirm the settings:
+   - **Cardinality:** Many to one (*:1)
+   - **Cross filter direction:** Single
+   - **Make this relationship active:** checked
 
-Drag-and-drop from FactTickets to each dim to create these relationships. For each one, **double-click the line** to verify:
+Create these five relationships:
 
-- **Cardinality:** Many to one (*:1)
-- **Cross filter direction:** Single
-- **Make this relationship active:** ✓ checked
-
-| From (FactTickets) | To | Cardinality | Direction |
-|---|---|---|---|
-| `agent_key` | `DimAgent[agent_key]` | Many-to-One | Single |
-| `category_key` | `DimCategory[category_key]` | Many-to-One | Single |
-| `channel_key` | `DimChannel[channel_key]` | Many-to-One | Single |
-| `priority_key` | `DimPriority[priority_key]` | Many-to-One | Single |
-| `created_date_key` | `DimCalendar[date_key]` | Many-to-One | Single |
+| From (FactTickets column) | To table → column | Cardinality |
+|---|---|---|
+| `agent_key` | DimAgent → `agent_key` | Many-to-One |
+| `category_key` | DimCategory → `category_key` | Many-to-One |
+| `channel_key` | DimChannel → `channel_key` | Many-to-One |
+| `priority_key` | DimPriority → `priority_key` | Many-to-One |
+| `created_date_key` | DimCalendar → `date_key` | Many-to-One |
 
 ---
 
-## 4. Mark DimCalendar as a Date Table
+## 5. Mark DimCalendar as a Date Table
 
-1. In **Model view**, click `DimCalendar`.
-2. **Table tools → Mark as date table → Mark as date table**.
-3. In the dialog, choose the `date` column.
+1. In **Model view**, click the `DimCalendar` table card.
+2. In the top ribbon, click **Table tools → Mark as date table**.
+3. In the dialog, set the date column to `date`.
 4. Click **OK**.
 
-(Power BI's time-intelligence DAX functions require this step.)
+This enables Power BI's time-intelligence functions (DATESINPERIOD, etc.) used
+by some DAX measures.
 
 ---
 
-## 5. Create the `_Measures` table
+## 6. Create the `_Measures` table
 
-1. **Home → Enter Data**.
-2. Leave the grid empty. Set the table name to `_Measures`. Click **Load**.
-3. In the Fields pane, expand `_Measures`. Right-click the auto-generated `Column1` and **Hide in report view**.
+1. In the report editor, click **Home → Enter data** (top ribbon).
+2. Leave the single cell blank. Set the table name to `_Measures`.
+3. Click **Load**.
+4. In the **Data** pane on the right, expand `_Measures`.
+5. Right-click `Column1` → **Hide**.
 
-(Naming it with a leading underscore floats it to the top of the Fields pane.)
-
----
-
-## 6. Paste DAX measures
-
-Open `measures/all_measures.dax` in any text editor. For **each measure** in that file:
-
-1. Click on the `_Measures` table in the Fields pane.
-2. **Home → New measure**.
-3. Replace the default formula bar text with the entire measure (including the `[Name] :=` line — Power BI will accept it).
-4. Press **Enter** or click the checkmark.
-5. With the new measure selected, set its **Home format** in the ribbon:
-   - `*Rate` and `*Display` ending in `%` → no special format (they are text).
-   - `*Hours`, `Avg CSAT`, etc. → 1 decimal place.
-   - Count measures → Whole number, thousands separator.
-
-Repeat for all measures. There are ~30. It is tedious but a one-time setup.
+> The leading underscore makes `_Measures` sort to the top of the Data pane.
 
 ---
 
-## 7. Build the visuals
+## 7. Paste DAX measures
 
-### Page 1 — Overview (executive KPI page)
+Open `measures/all_measures.dax` in any text editor (Notepad, VS Code, etc.).
 
-#### 7.1 KPI cards row (top of page)
+For **each measure** in that file:
 
-Insert **five Card** visuals (Visualizations pane → Card). For each card, drag a single measure to the **Fields** well.
+1. In the Data pane, click on `_Measures` to select it.
+2. In the top ribbon, click **Home → New measure**.
+3. The formula bar appears. Delete the default text and paste the full measure:
+   ```
+   [Total Tickets] :=
+   COUNTROWS ( FactTickets )
+   ```
+4. Press **Enter** or click the checkmark ✓.
+5. With the measure still selected, set formatting in the ribbon:
+   - Count measures (`Total Tickets`, `Backlog Count`, etc.) → **Whole number**, thousands separator on.
+   - Hour measures (`MTTR Hours`, `MTTA Hours`) → **Decimal number**, 1 decimal place.
+   - Display measures (`MTTR Display`, `CSAT Display`, etc.) → leave as Text (they return formatted strings).
+   - Rate measures (`FCR Rate`, `SLA Compliance Rate`) → **Percentage** or **Decimal**, 1 decimal place.
 
-| Card | Measure | Format |
-|---|---|---|
-| Total Tickets | `[Total Tickets]` | Whole number |
-| Open Backlog | `[Backlog Count]` | Whole number |
-| MTTR | `[MTTR Display]` | Text |
-| SLA Compliance | `[SLA Compliance Display]` | Text |
-| CSAT | `[CSAT Display]` | Text |
+Repeat for all ~30 measures in the file.
 
-**Conditional formatting on Total Tickets:** Format → Callout value → Color → fx → Format style "Rules":
-- < 100 = green
-- 100–500 = orange
-- > 500 = red
+---
 
-**Conditional formatting on SLA Compliance:** apply Rules on `[SLA Compliance Rate]`:
-- ≥ 95 = green
-- 85–94.99 = orange
-- < 85 = red
+## 8. Build the visuals
 
-#### 7.2 Tickets by Day line chart
+### Page 1 — Overview
 
-- Visual: **Line chart**.
+Rename the default page to "Overview" by double-clicking the tab at the bottom.
+
+#### 8.1 KPI cards (top row)
+
+Insert **5 Card** visuals (**+ Add visual → Card**). Drag one measure into each:
+
+| Card label | Measure |
+|---|---|
+| Total Tickets | `[Total Tickets]` |
+| Open Backlog | `[Backlog Count]` |
+| Avg Resolution Time | `[MTTR Display]` |
+| SLA Compliance | `[SLA Compliance Display]` |
+| CSAT Score | `[CSAT Display]` |
+
+**Conditional formatting — SLA Compliance card:**
+- Click the card → Format visual (paint roller) → Callout value → Color → **fx**.
+- Format style: Rules. Based on field: `[SLA Compliance Rate]`.
+- Rule 1: ≥ 95 → green. Rule 2: 85–94.99 → orange. Rule 3: < 85 → red.
+
+#### 8.2 Tickets over time (line chart)
+
+- Visual: **Line chart**
 - X-axis: `DimCalendar[date]`
 - Y-axis: `[Total Tickets]`
-- Sort: ascending by date.
+- Sort: ascending by date (click the `…` menu on the visual → Sort axis → date → Ascending)
 
-#### 7.3 Tickets by Priority bar chart
+#### 8.3 Tickets by Priority (bar chart)
 
-- Visual: **Clustered bar chart**.
+- Visual: **Clustered bar chart**
 - Y-axis: `DimPriority[priority_name]`
 - X-axis: `[Total Tickets]`
-- Sort: by `[Total Tickets]` descending.
-- Data colors: Critical=red, High=orange, Medium=blue, Low=gray.
+- Sort: by `[Total Tickets]` descending
+- Data colors (Format → Data colors → fx → Rules on `DimPriority[priority_name]`):
+  - Critical = `#D13438` (red)
+  - High = `#E37D00` (orange)
+  - Medium = `#0078D4` (blue)
+  - Low = `#8A8886` (gray)
 
-#### 7.4 Aging breakdown donut
+#### 8.4 Backlog aging (donut chart)
 
-- Visual: **Donut chart**.
+- Visual: **Donut chart**
 - Legend: `FactTickets[ticket_age_band]`
 - Values: `[Total Tickets]`
-- Filter: `ticket_age_band <> "(Resolved)"` (drag the field to the visual filter pane).
+- Add a **visual-level filter**: `ticket_age_band` is not `(Resolved)`.
+
+---
 
 ### Page 2 — SLA & Performance
 
-- KPI cards: `[SLA Breach Count]`, `[SLA At Risk]`, `[FCR Rate Display]`, `[Oldest Open Ticket Days]`.
-- **Matrix** visual:
-  - Rows: `DimAgent[agent_name]`
-  - Values: `[Total Tickets]`, `[Agent MTTR]`, `[Agent FCR Rate]`, `[Agent SLA Compliance]`
-  - Sort: `[Agent SLA Compliance]` ascending (worst at top).
-  - Conditional formatting on `Agent SLA Compliance`: Format → Cell elements → Background color → Rules: <80=red, 80–94=orange, ≥95=green.
-- **Clustered column chart** (SLA breach by category):
-  - X-axis: `DimCategory[category_name]`
-  - Y-axis: `[SLA Breach Rate by Category]`
-  - Sort descending.
+Add a new page (click **+** next to page tabs at the bottom). Name it "SLA & Performance".
+
+#### KPI cards row
+
+| Card | Measure |
+|---|---|
+| SLA Breaches | `[SLA Breach Count]` |
+| SLA At Risk | `[SLA At Risk]` |
+| FCR Rate | `[FCR Rate Display]` |
+| Oldest Open (days) | `[Oldest Open Ticket Days]` |
+
+#### SLA breach by category (column chart)
+
+- Visual: **Clustered column chart**
+- X-axis: `DimCategory[category_name]`
+- Y-axis: `[SLA Breach Rate by Category]`
+- Sort: descending by Y value
+
+#### Agent performance matrix
+
+- Visual: **Matrix**
+- Rows: `DimAgent[agent_name]`
+- Values: `[Total Tickets]`, `[Agent MTTR]`, `[Agent FCR Rate]`, `[Agent SLA Compliance]`
+- Sort: `[Agent SLA Compliance]` ascending (worst-performing agents at the top)
+- Conditional formatting on `Agent SLA Compliance` (Format → Cell elements → Background color → fx → Rules):
+  - < 80 → red
+  - 80–94.99 → orange
+  - ≥ 95 → green
+
+---
 
 ### Page 3 — CSAT
 
-- Cards: `[CSAT Display]`, `[CSAT Satisfied Rate]`, `[CSAT Dissatisfied Rate]`.
-- **Stacked bar** by category showing satisfied / neutral / dissatisfied splits.
+Add a third page named "CSAT".
+
+#### KPI cards
+
+| Card | Measure |
+|---|---|
+| Avg CSAT | `[CSAT Display]` |
+| Satisfied (4–5) | `[CSAT Satisfied Rate]` |
+| Dissatisfied (1–2) | `[CSAT Dissatisfied Rate]` |
+
+#### CSAT by category (bar chart)
+
+- Visual: **Clustered bar chart**
+- Y-axis: `DimCategory[category_name]`
+- X-axis: `[Avg CSAT]`
+- Sort: ascending (lowest-rated categories at top)
 
 ---
 
-## 8. Slicers
+## 9. Slicers
 
-On every page, add slicers at the top:
+On **every page**, add four slicers at the top (Insert → Slicer):
 
-| Slicer | Field | Mode |
-|---|---|---|
-| Date range | `DimCalendar[date]` | **Between** (relative date) |
-| Priority | `DimPriority[priority_name]` | Vertical list |
-| Team | `DimAgent[team]` | Dropdown |
-| Channel | `DimChannel[channel_name]` | Dropdown |
+| Slicer field | Display mode |
+|---|---|
+| `DimCalendar[date]` | **Between** → switch to **Relative date** for "last 30 days" default |
+| `DimPriority[priority_name]` | Vertical list |
+| `DimChannel[channel_name]` | Dropdown |
+| `DimCategory[category_name]` | Dropdown |
 
 **Sync slicers across pages:**
 
-1. **View → Sync slicers**.
-2. Select each slicer in turn; in the Sync slicers pane, tick both **Sync** and **Visible** for every page.
+1. Click a slicer on Page 1.
+2. In the top ribbon, click **View → Sync slicers**.
+3. In the Sync slicers pane, tick both **Sync** (gear icon) and **Visible** (eye icon) for all three pages.
+4. Repeat for each slicer.
 
 ---
 
-## 9. Page navigation buttons
+## 10. Page navigation buttons
 
-1. **Insert → Buttons → Blank**. Repeat for as many pages as you have (3).
-2. With a button selected, in Format pane → **Action → On → Type = Page navigation → Destination = (page name)**.
-3. Set the button text to the page name.
-4. Hold **Ctrl** to test-click in design mode.
-5. Group the buttons (**Shift-click + Group**) and copy/paste onto every page in the same position so the nav looks identical.
+1. On Page 1, click **Insert → Buttons → Blank**.
+2. In **Format → Button → Text**, type the page name (e.g., "SLA & Performance").
+3. In **Format → Action**, turn Action on, set Type to **Page navigation**, set Destination to "SLA & Performance".
+4. Copy the button (Ctrl+C), paste two more, and update the text and destination for each page.
+5. Select all three buttons (Shift-click) → right-click → **Group**.
+6. Copy the group and paste it onto the other two pages so navigation is consistent.
+
+> In Power BI Service, Ctrl+click a button while in Edit mode to test the navigation.
 
 ---
 
-## 10. Publish to Power BI Service
+## 11. Save and share the report
 
-1. **Home → Publish**. Sign in with your Microsoft account.
-2. Choose a workspace (My workspace is fine for a portfolio).
-3. After upload, click **Open in Power BI** to view the report online.
-4. Optional: **File → Export → Export to PDF** for a static portfolio snapshot.
+1. Click **File → Save** and name the report `IT Helpdesk Dashboard`.
+2. The report is saved to your workspace automatically — no publish step needed
+   (you are already in the service).
+3. To share: click **Share** (top right) → enter a colleague's email, or copy
+   the shareable link.
+4. To export a static snapshot: **File → Export → Export to PDF**.
 
-> **Refreshing data:** because we used local CSVs, scheduled refresh requires a personal gateway. For a portfolio, "manually re-publish after running the Python pipeline" is fine.
+---
+
+## Refreshing data
+
+Because the data lives in uploaded CSV files, refreshing requires re-uploading
+the CSVs after re-running the pipeline:
+
+1. Re-run `bash scripts/run_all.sh` on your machine.
+2. In your workspace, click the dataset → **Settings → Data source credentials → Edit**.
+3. Re-upload the updated CSVs.
+
+> For a portfolio project, refreshing manually is fine. Automatic scheduled
+> refresh of local CSVs requires a **Personal gateway** (free to install,
+> runs on your local machine).
