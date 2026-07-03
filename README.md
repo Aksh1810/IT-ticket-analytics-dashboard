@@ -2,7 +2,7 @@
 
 A Power BI analytics solution that turns raw IT support ticket data into answers for the questions IT managers actually ask: *Are we meeting SLA targets? Where is time being lost? Is the backlog growing?*
 
-![Dashboard Preview](screenshots/dashboard_preview.png)
+![Dashboard Preview](screenshots/I1.png)
 
 ---
 
